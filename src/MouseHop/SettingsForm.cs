@@ -137,7 +137,6 @@ internal sealed class SettingsForm : Form
         }
     }
 
-
     internal void SetDisplayOrder(IReadOnlyList<string> displayOrder)
     {
         var selectedDeviceName = (displayOrderListBox.SelectedItem as DisplayInfo)?.DeviceName;
@@ -184,7 +183,6 @@ internal sealed class SettingsForm : Form
         DisplayOrderChanged?.Invoke(this, displayOrder);
     }
 
-
     internal void SetStartWithWindows(bool startWithWindows)
     {
         updatingStartWithWindows = true;
@@ -214,7 +212,6 @@ internal sealed class SettingsForm : Form
             MovementModeChanged?.Invoke(this, item.Value);
         }
     }
-
 
     private void OnStartWithWindowsCheckedChanged(object? sender, EventArgs e)
     {

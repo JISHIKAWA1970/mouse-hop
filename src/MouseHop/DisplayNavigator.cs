@@ -125,4 +125,3 @@ internal sealed class DisplayNavigator
 internal sealed record DisplayInfo(string DeviceName, string DisplayText)
 {
     public override string ToString() => DisplayText;
-}
