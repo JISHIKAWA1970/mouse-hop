@@ -6,10 +6,14 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly HotKeyWindow hotKeyWindow = new();
     private readonly NotifyIcon notifyIcon;
     private readonly ToolStripMenuItem pauseMenuItem;
+    private SettingsForm? settingsForm;
+    private HotKeySettings currentHotKey;
     private bool paused;
 
     internal TrayApplicationContext()
     {
+        currentHotKey = SettingsStore.Load();
+
         pauseMenuItem = new ToolStripMenuItem("一時停止", null, OnPauseClicked)
         {
             CheckOnClick = true
@@ -17,6 +21,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         var menu = new ContextMenuStrip();
         menu.Items.Add("次のディスプレイへ移動", null, OnMoveNextClicked);
+        menu.Items.Add("設定", null, OnSettingsClicked);
         menu.Items.Add(pauseMenuItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("終了", null, OnExitClicked);
@@ -30,12 +35,17 @@ internal sealed class TrayApplicationContext : ApplicationContext
         };
 
         hotKeyWindow.HotKeyPressed += OnHotKeyPressed;
-        if (!hotKeyWindow.TryRegisterMoveHotKey(out var errorMessage))
+        RegisterCurrentHotKey();
+    }
+
+    private void RegisterCurrentHotKey()
+    {
+        if (!hotKeyWindow.TryRegisterMoveHotKey(currentHotKey, out var errorMessage))
         {
             notifyIcon.ShowBalloonTip(
                 5000,
                 "Mouse Hop",
-                errorMessage ?? "F13 の登録に失敗しました。",
+                errorMessage ?? $"{currentHotKey.DisplayText} の登録に失敗しました。",
                 ToolTipIcon.Warning);
         }
     }
@@ -48,6 +58,27 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private void OnMoveNextClicked(object? sender, EventArgs e)
     {
         MoveNextIfEnabled();
+    }
+
+    private void OnSettingsClicked(object? sender, EventArgs e)
+    {
+        if (settingsForm is null || settingsForm.IsDisposed)
+        {
+            settingsForm = new SettingsForm(currentHotKey);
+            settingsForm.HotKeyChanged += OnSettingsHotKeyChanged;
+            settingsForm.FormClosed += (_, _) => settingsForm = null;
+        }
+
+        settingsForm.Show();
+        settingsForm.Activate();
+    }
+
+    private void OnSettingsHotKeyChanged(object? sender, HotKeySettings settings)
+    {
+        currentHotKey = settings;
+        SettingsStore.Save(currentHotKey);
+        RegisterCurrentHotKey();
+        settingsForm?.SetCurrentHotKey(currentHotKey);
     }
 
     private void OnPauseClicked(object? sender, EventArgs e)
@@ -75,6 +106,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         if (disposing)
         {
+            settingsForm?.Dispose();
             hotKeyWindow.Dispose();
             notifyIcon.Visible = false;
             notifyIcon.Dispose();
