@@ -165,7 +165,6 @@ internal sealed class SettingsForm : Form
         }
     }
 
-
     internal void SetDisplayOrder(IReadOnlyList<string> displayOrder)
     {
         var selectedDeviceName = (displayOrderListBox.SelectedItem as DisplayInfo)?.DeviceName;
@@ -212,7 +211,6 @@ internal sealed class SettingsForm : Form
         DisplayOrderChanged?.Invoke(this, displayOrder);
     }
 
-
     internal void SetStartWithWindows(bool startWithWindows)
     {
         updatingStartWithWindows = true;
@@ -226,7 +224,6 @@ internal sealed class SettingsForm : Form
         }
     }
 
-
     internal void SetInstallationStatus(InstallationStatus status)
     {
         installationStatusLabel.Text = status.IsInstalled
@@ -236,7 +233,11 @@ internal sealed class SettingsForm : Form
         var currentPath = string.IsNullOrWhiteSpace(status.CurrentExecutablePath)
             ? "取得できません"
             : status.CurrentExecutablePath;
-        installationPathLabel.Text = $"現在の場所: {currentPath}{Environment.NewLine}標準の場所: {status.StandardExecutablePath}{Environment.NewLine}この場所へ配置して常用できます。";
+
+        installationPathLabel.Text =
+            $"現在の場所: {currentPath}{Environment.NewLine}" +
+            $"標準の場所: {status.StandardExecutablePath}{Environment.NewLine}" +
+            "この場所へ配置して常用できます。";
 
         installButton.Enabled = !status.IsInstalled && status.CanInstall;
         installButton.Text = status.IsInstalled ? "標準フォルダに配置済み" : "標準フォルダへ配置";
@@ -258,7 +259,6 @@ internal sealed class SettingsForm : Form
             MovementModeChanged?.Invoke(this, item.Value);
         }
     }
-
 
     private void OnStartWithWindowsCheckedChanged(object? sender, EventArgs e)
     {

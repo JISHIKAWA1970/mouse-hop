@@ -114,6 +114,25 @@ internal sealed class TrayApplicationContext : ApplicationContext
         settingsForm?.SetStartWithWindows(settings.StartWithWindows);
     }
 
+    private void OnInstallToStandardLocationRequested(object? sender, EventArgs e)
+    {
+        var result = InstallationManager.InstallToStandardLocationAndRestart();
+        if (!result.Succeeded)
+        {
+            ShowWarning(result.ErrorMessage ?? "標準フォルダへの配置に失敗しました。");
+            settingsForm?.SetInstallationStatus(InstallationManager.GetStatus());
+            return;
+        }
+
+        if (result.ShouldExitCurrentProcess)
+        {
+            ExitThread();
+            return;
+        }
+
+        settingsForm?.SetInstallationStatus(InstallationManager.GetStatus());
+    }
+
     private void RefreshStartWithWindowsSetting()
     {
         var actualStartWithWindows = StartupManager.IsEnabled();
@@ -133,25 +152,6 @@ internal sealed class TrayApplicationContext : ApplicationContext
             "Mouse Hop",
             message,
             ToolTipIcon.Warning);
-    }
-
-    private void OnInstallToStandardLocationRequested(object? sender, EventArgs e)
-    {
-        var result = InstallationManager.InstallToStandardLocationAndRestart();
-        if (!result.Succeeded)
-        {
-            ShowWarning(result.ErrorMessage ?? "標準フォルダへの配置に失敗しました。");
-            settingsForm?.SetInstallationStatus(InstallationManager.GetStatus());
-            return;
-        }
-
-        if (result.ShouldExitCurrentProcess)
-        {
-            ExitThread();
-            return;
-        }
-
-        settingsForm?.SetInstallationStatus(InstallationManager.GetStatus());
     }
 
     private void OnPauseClicked(object? sender, EventArgs e)
@@ -178,7 +178,6 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
         catch
         {
-            // Fall back to the default icon if the generated icon cannot be created.
             return SystemIcons.Application;
         }
     }
