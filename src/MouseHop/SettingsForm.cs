@@ -4,20 +4,22 @@ internal sealed class SettingsForm : Form
 {
     private readonly Label currentHotKeyLabel = new();
     private readonly Button changeButton = new();
+    private readonly ComboBox movementModeComboBox = new();
     private bool waitingForHotKey;
     private bool leftWinDown;
     private bool rightWinDown;
 
     internal event EventHandler<HotKeySettings>? HotKeyChanged;
+    internal event EventHandler<MovementMode>? MovementModeChanged;
 
-    internal SettingsForm(HotKeySettings currentHotKey)
+    internal SettingsForm(AppSettings settings)
     {
         Text = "Mouse Hop 設定";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(360, 130);
+        ClientSize = new Size(360, 190);
         KeyPreview = true;
 
         var descriptionLabel = new Label
@@ -36,11 +38,33 @@ internal sealed class SettingsForm : Form
         changeButton.Text = "変更";
         changeButton.Click += OnChangeClicked;
 
+        var movementModeLabel = new Label
+        {
+            AutoSize = true,
+            Location = new Point(16, 122),
+            Text = "移動方式:"
+        };
+
+        movementModeComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        movementModeComboBox.Location = new Point(96, 118);
+        movementModeComboBox.Width = 120;
+        movementModeComboBox.Items.Add(new MovementModeItem("ループ", MovementMode.Loop));
+        movementModeComboBox.Items.Add(new MovementModeItem("往復", MovementMode.PingPong));
+        movementModeComboBox.SelectedIndexChanged += OnMovementModeSelectedIndexChanged;
+
         Controls.Add(descriptionLabel);
         Controls.Add(currentHotKeyLabel);
         Controls.Add(changeButton);
+        Controls.Add(movementModeLabel);
+        Controls.Add(movementModeComboBox);
 
-        SetCurrentHotKey(currentHotKey);
+        SetSettings(settings);
+    }
+
+    internal void SetSettings(AppSettings settings)
+    {
+        SetCurrentHotKey(settings.HotKey);
+        SetMovementMode(settings.MovementMode);
     }
 
     internal void SetCurrentHotKey(HotKeySettings settings)
@@ -52,6 +76,18 @@ internal sealed class SettingsForm : Form
         }
     }
 
+    internal void SetMovementMode(MovementMode movementMode)
+    {
+        for (var i = 0; i < movementModeComboBox.Items.Count; i++)
+        {
+            if (movementModeComboBox.Items[i] is MovementModeItem item && item.Value == movementMode)
+            {
+                movementModeComboBox.SelectedIndex = i;
+                return;
+            }
+        }
+    }
+
     private void OnChangeClicked(object? sender, EventArgs e)
     {
         waitingForHotKey = true;
@@ -59,6 +95,14 @@ internal sealed class SettingsForm : Form
         currentHotKeyLabel.Text = "新しいホットキーを押してください";
         ActiveControl = null;
         Focus();
+    }
+
+    private void OnMovementModeSelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (movementModeComboBox.SelectedItem is MovementModeItem item)
+        {
+            MovementModeChanged?.Invoke(this, item.Value);
+        }
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -141,5 +185,10 @@ internal sealed class SettingsForm : Form
         SetCurrentHotKey(settings);
         HotKeyChanged?.Invoke(this, settings);
         return true;
+    }
+
+    private sealed record MovementModeItem(string Text, MovementMode Value)
+    {
+        public override string ToString() => Text;
     }
 }

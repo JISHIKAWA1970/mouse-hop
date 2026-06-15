@@ -7,12 +7,12 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly NotifyIcon notifyIcon;
     private readonly ToolStripMenuItem pauseMenuItem;
     private SettingsForm? settingsForm;
-    private HotKeySettings currentHotKey;
+    private AppSettings settings;
     private bool paused;
 
     internal TrayApplicationContext()
     {
-        currentHotKey = SettingsStore.Load();
+        settings = SettingsStore.Load();
 
         pauseMenuItem = new ToolStripMenuItem("一時停止", null, OnPauseClicked)
         {
@@ -40,12 +40,12 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     private void RegisterCurrentHotKey()
     {
-        if (!hotKeyWindow.TryRegisterMoveHotKey(currentHotKey, out var errorMessage))
+        if (!hotKeyWindow.TryRegisterMoveHotKey(settings.HotKey, out var errorMessage))
         {
             notifyIcon.ShowBalloonTip(
                 5000,
                 "Mouse Hop",
-                errorMessage ?? $"{currentHotKey.DisplayText} の登録に失敗しました。",
+                errorMessage ?? $"{settings.HotKey.DisplayText} の登録に失敗しました。",
                 ToolTipIcon.Warning);
         }
     }
@@ -64,8 +64,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         if (settingsForm is null || settingsForm.IsDisposed)
         {
-            settingsForm = new SettingsForm(currentHotKey);
+            settingsForm = new SettingsForm(settings);
             settingsForm.HotKeyChanged += OnSettingsHotKeyChanged;
+            settingsForm.MovementModeChanged += OnSettingsMovementModeChanged;
             settingsForm.FormClosed += (_, _) => settingsForm = null;
         }
 
@@ -73,12 +74,19 @@ internal sealed class TrayApplicationContext : ApplicationContext
         settingsForm.Activate();
     }
 
-    private void OnSettingsHotKeyChanged(object? sender, HotKeySettings settings)
+    private void OnSettingsHotKeyChanged(object? sender, HotKeySettings hotKey)
     {
-        currentHotKey = settings;
-        SettingsStore.Save(currentHotKey);
+        settings = settings with { HotKey = hotKey };
+        SettingsStore.Save(settings);
         RegisterCurrentHotKey();
-        settingsForm?.SetCurrentHotKey(currentHotKey);
+        settingsForm?.SetCurrentHotKey(settings.HotKey);
+    }
+
+    private void OnSettingsMovementModeChanged(object? sender, MovementMode movementMode)
+    {
+        settings = settings with { MovementMode = movementMode };
+        SettingsStore.Save(settings);
+        settingsForm?.SetMovementMode(settings.MovementMode);
     }
 
     private void OnPauseClicked(object? sender, EventArgs e)
@@ -94,7 +102,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             return;
         }
 
-        displayNavigator.MoveToNextDisplayCenter();
+        displayNavigator.MoveToNextDisplayCenter(settings.MovementMode);
     }
 
     private void OnExitClicked(object? sender, EventArgs e)

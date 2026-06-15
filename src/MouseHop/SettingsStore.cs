@@ -12,37 +12,55 @@ internal static class SettingsStore
 
     private static string SettingsPath => Path.Combine(SettingsDirectory, "settings.json");
 
-    internal static HotKeySettings Load()
+    internal static AppSettings Load()
     {
         try
         {
             if (!File.Exists(SettingsPath))
             {
-                return HotKeySettings.Default;
+                return AppSettings.Default;
             }
 
             var json = File.ReadAllText(SettingsPath);
             var dto = JsonSerializer.Deserialize<SettingsDto>(json);
             if (dto is null || dto.Key == Keys.None)
             {
-                return HotKeySettings.Default;
+                return AppSettings.Default;
             }
 
-            return new HotKeySettings(dto.Modifiers, dto.Key);
+            var movementMode = Enum.IsDefined(typeof(MovementMode), dto.MovementMode)
+                ? dto.MovementMode
+                : MovementMode.Loop;
+
+            return new AppSettings(
+                new HotKeySettings(dto.Modifiers, dto.Key),
+                movementMode);
         }
         catch
         {
-            return HotKeySettings.Default;
+            return AppSettings.Default;
         }
     }
 
-    internal static void Save(HotKeySettings settings)
+    internal static void Save(AppSettings settings)
     {
         Directory.CreateDirectory(SettingsDirectory);
-        var dto = new SettingsDto(settings.Modifiers, settings.Key);
+        var dto = new SettingsDto
+        {
+            Modifiers = settings.HotKey.Modifiers,
+            Key = settings.HotKey.Key,
+            MovementMode = settings.MovementMode
+        };
         var json = JsonSerializer.Serialize(dto, SerializerOptions);
         File.WriteAllText(SettingsPath, json);
     }
 
-    private sealed record SettingsDto(uint Modifiers, Keys Key);
+    private sealed class SettingsDto
+    {
+        public uint Modifiers { get; set; }
+
+        public Keys Key { get; set; }
+
+        public MovementMode MovementMode { get; set; } = MovementMode.Loop;
+    }
 }
