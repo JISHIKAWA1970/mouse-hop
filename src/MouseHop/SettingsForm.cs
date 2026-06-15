@@ -8,6 +8,8 @@ internal sealed class SettingsForm : Form
     private readonly ListBox displayOrderListBox = new();
     private readonly Button moveUpButton = new();
     private readonly Button moveDownButton = new();
+    private readonly CheckBox startWithWindowsCheckBox = new();
+    private bool updatingStartWithWindows;
     private bool waitingForHotKey;
     private bool leftWinDown;
     private bool rightWinDown;
@@ -15,6 +17,7 @@ internal sealed class SettingsForm : Form
     internal event EventHandler<HotKeySettings>? HotKeyChanged;
     internal event EventHandler<MovementMode>? MovementModeChanged;
     internal event EventHandler<IReadOnlyList<string>>? DisplayOrderChanged;
+    internal event EventHandler<bool>? StartWithWindowsChanged;
 
     internal SettingsForm(AppSettings settings)
     {
@@ -23,7 +26,7 @@ internal sealed class SettingsForm : Form
         MaximizeBox = false;
         MinimizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(560, 420);
+        ClientSize = new Size(560, 470);
         KeyPreview = true;
 
         var descriptionLabel = new Label
@@ -90,11 +93,17 @@ internal sealed class SettingsForm : Form
             Text = "接続中のディスプレイだけを表示します。未接続の保存済みディスプレイは無視し、新しく増えたディスプレイは末尾に追加します。"
         };
 
+        startWithWindowsCheckBox.AutoSize = true;
+        startWithWindowsCheckBox.Location = new Point(16, 412);
+        startWithWindowsCheckBox.Text = "Windows 起動時に Mouse Hop を起動する";
+        startWithWindowsCheckBox.CheckedChanged += OnStartWithWindowsCheckedChanged;
+
         Controls.Add(displayOrderLabel);
         Controls.Add(displayOrderListBox);
         Controls.Add(moveUpButton);
         Controls.Add(moveDownButton);
         Controls.Add(displayOrderHelpLabel);
+        Controls.Add(startWithWindowsCheckBox);
 
         SetSettings(settings);
     }
@@ -104,6 +113,7 @@ internal sealed class SettingsForm : Form
         SetCurrentHotKey(settings.HotKey);
         SetMovementMode(settings.MovementMode);
         SetDisplayOrder(settings.DisplayOrder);
+        SetStartWithWindows(settings.StartWithWindows);
     }
 
     internal void SetCurrentHotKey(HotKeySettings settings)
@@ -173,6 +183,19 @@ internal sealed class SettingsForm : Form
         DisplayOrderChanged?.Invoke(this, displayOrder);
     }
 
+    internal void SetStartWithWindows(bool startWithWindows)
+    {
+        updatingStartWithWindows = true;
+        try
+        {
+            startWithWindowsCheckBox.Checked = startWithWindows;
+        }
+        finally
+        {
+            updatingStartWithWindows = false;
+        }
+    }
+
     private void OnChangeClicked(object? sender, EventArgs e)
     {
         waitingForHotKey = true;
@@ -188,6 +211,16 @@ internal sealed class SettingsForm : Form
         {
             MovementModeChanged?.Invoke(this, item.Value);
         }
+    }
+
+    private void OnStartWithWindowsCheckedChanged(object? sender, EventArgs e)
+    {
+        if (updatingStartWithWindows)
+        {
+            return;
+        }
+
+        StartWithWindowsChanged?.Invoke(this, startWithWindowsCheckBox.Checked);
     }
 
     protected override void OnKeyDown(KeyEventArgs e)

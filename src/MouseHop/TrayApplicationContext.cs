@@ -13,6 +13,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     internal TrayApplicationContext()
     {
         settings = SettingsStore.Load();
+        RefreshStartWithWindowsSetting();
 
         pauseMenuItem = new ToolStripMenuItem("一時停止", null, OnPauseClicked)
         {
@@ -42,11 +43,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         if (!hotKeyWindow.TryRegisterMoveHotKey(settings.HotKey, out var errorMessage))
         {
-            notifyIcon.ShowBalloonTip(
-                5000,
-                "Mouse Hop",
-                errorMessage ?? $"{settings.HotKey.DisplayText} の登録に失敗しました。",
-                ToolTipIcon.Warning);
+            ShowWarning(errorMessage ?? $"{settings.HotKey.DisplayText} の登録に失敗しました。");
         }
     }
 
@@ -68,9 +65,12 @@ internal sealed class TrayApplicationContext : ApplicationContext
             settingsForm.HotKeyChanged += OnSettingsHotKeyChanged;
             settingsForm.MovementModeChanged += OnSettingsMovementModeChanged;
             settingsForm.DisplayOrderChanged += OnSettingsDisplayOrderChanged;
+            settingsForm.StartWithWindowsChanged += OnSettingsStartWithWindowsChanged;
             settingsForm.FormClosed += (_, _) => settingsForm = null;
         }
 
+        RefreshStartWithWindowsSetting();
+        settingsForm.SetStartWithWindows(settings.StartWithWindows);
         settingsForm.Show();
         settingsForm.Activate();
     }
@@ -95,6 +95,42 @@ internal sealed class TrayApplicationContext : ApplicationContext
         settings = settings with { DisplayOrder = displayOrder.ToArray() };
         SettingsStore.Save(settings);
         settingsForm?.SetDisplayOrder(settings.DisplayOrder);
+    }
+
+    private void OnSettingsStartWithWindowsChanged(object? sender, bool startWithWindows)
+    {
+        var result = StartupManager.SetEnabled(startWithWindows);
+        if (!result.Succeeded)
+        {
+            ShowWarning(result.ErrorMessage ?? "Windows の自動起動設定を変更できませんでした。");
+            RefreshStartWithWindowsSetting();
+            settingsForm?.SetStartWithWindows(settings.StartWithWindows);
+            return;
+        }
+
+        RefreshStartWithWindowsSetting();
+        settingsForm?.SetStartWithWindows(settings.StartWithWindows);
+    }
+
+    private void RefreshStartWithWindowsSetting()
+    {
+        var actualStartWithWindows = StartupManager.IsEnabled();
+        if (settings.StartWithWindows == actualStartWithWindows)
+        {
+            return;
+        }
+
+        settings = settings with { StartWithWindows = actualStartWithWindows };
+        SettingsStore.Save(settings);
+    }
+
+    private void ShowWarning(string message)
+    {
+        notifyIcon.ShowBalloonTip(
+            5000,
+            "Mouse Hop",
+            message,
+            ToolTipIcon.Warning);
     }
 
     private void OnPauseClicked(object? sender, EventArgs e)

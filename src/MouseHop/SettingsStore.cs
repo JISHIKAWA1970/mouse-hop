@@ -35,7 +35,8 @@ internal static class SettingsStore
             return new AppSettings(
                 new HotKeySettings(dto.Modifiers, dto.Key),
                 movementMode,
-                dto.DisplayOrder ?? Array.Empty<string>());
+                dto.DisplayOrder ?? Array.Empty<string>(),
+                dto.StartWithWindows);
         }
         catch
         {
@@ -51,7 +52,8 @@ internal static class SettingsStore
             Modifiers = settings.HotKey.Modifiers,
             Key = settings.HotKey.Key,
             MovementMode = settings.MovementMode,
-            DisplayOrder = settings.DisplayOrder.ToArray()
+            DisplayOrder = settings.DisplayOrder.ToArray(),
+            StartWithWindows = settings.StartWithWindows
         };
         var json = JsonSerializer.Serialize(dto, SerializerOptions);
         File.WriteAllText(SettingsPath, json);
@@ -66,5 +68,7 @@ internal static class SettingsStore
         public MovementMode MovementMode { get; set; } = MovementMode.Loop;
 
         public string[]? DisplayOrder { get; set; }
+
+        public bool StartWithWindows { get; set; }
     }
 }
