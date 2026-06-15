@@ -12,7 +12,8 @@ internal static class StartupManager
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: false);
-            return !string.IsNullOrWhiteSpace(key?.GetValue(ValueName) as string);
+            var registeredValue = key?.GetValue(ValueName) as string;
+            return PointsToStandardExecutable(registeredValue);
         }
         catch
         {
@@ -36,12 +37,13 @@ internal static class StartupManager
                 return StartupChangeResult.Success();
             }
 
-            if (!TryGetStartupExecutablePath(out var executablePath, out var errorMessage))
+            var standardExecutablePath = InstallationManager.StandardExecutablePath;
+            if (!File.Exists(standardExecutablePath))
             {
-                return StartupChangeResult.Failure(errorMessage);
+                return StartupChangeResult.Failure("自動起動を有効にする前に、先に標準フォルダへ配置してください。");
             }
 
-            key.SetValue(ValueName, Quote(executablePath), RegistryValueKind.String);
+            key.SetValue(ValueName, Quote(standardExecutablePath), RegistryValueKind.String);
             return StartupChangeResult.Success();
         }
         catch (Exception exception)
@@ -50,37 +52,15 @@ internal static class StartupManager
         }
     }
 
-    private static bool TryGetStartupExecutablePath(out string executablePath, out string errorMessage)
+    private static bool PointsToStandardExecutable(string? registeredValue)
     {
-        executablePath = Environment.ProcessPath ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(executablePath))
+        if (string.IsNullOrWhiteSpace(registeredValue))
         {
-            errorMessage = "現在の実行ファイルパスを取得できないため、自動起動に登録できません。";
             return false;
         }
 
-        if (!string.Equals(Path.GetExtension(executablePath), ".exe", StringComparison.OrdinalIgnoreCase))
-        {
-            errorMessage = "dotnet run や DLL 経由の実行中は自動起動に登録できません。publish 済みの MouseHop.exe から起動して設定してください。";
-            return false;
-        }
-
-        if (!string.Equals(Path.GetFileName(executablePath), "MouseHop.exe", StringComparison.OrdinalIgnoreCase))
-        {
-            errorMessage = "MouseHop.exe 以外の実行ファイルは自動起動に登録できません。publish 済みの MouseHop.exe から起動して設定してください。";
-            return false;
-        }
-
-        var baseDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var directoryParts = baseDirectory.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        if (directoryParts.Any(part => string.Equals(part, "bin", StringComparison.OrdinalIgnoreCase)))
-        {
-            errorMessage = "開発用の bin フォルダから実行中は自動起動に登録しません。publish 済みの MouseHop.exe から起動して設定してください。";
-            return false;
-        }
-
-        errorMessage = string.Empty;
-        return true;
+        var registeredPath = registeredValue.Trim().Trim('"');
+        return InstallationManager.IsStandardPath(registeredPath);
     }
 
     private static string Quote(string path) => $"\"{path}\"";

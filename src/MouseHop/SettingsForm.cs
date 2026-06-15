@@ -9,6 +9,9 @@ internal sealed class SettingsForm : Form
     private readonly Button moveUpButton = new();
     private readonly Button moveDownButton = new();
     private readonly CheckBox startWithWindowsCheckBox = new();
+    private readonly Label installationStatusLabel = new();
+    private readonly Label installationPathLabel = new();
+    private readonly Button installButton = new();
     private bool updatingStartWithWindows;
     private bool waitingForHotKey;
     private bool leftWinDown;
@@ -18,6 +21,7 @@ internal sealed class SettingsForm : Form
     internal event EventHandler<MovementMode>? MovementModeChanged;
     internal event EventHandler<IReadOnlyList<string>>? DisplayOrderChanged;
     internal event EventHandler<bool>? StartWithWindowsChanged;
+    internal event EventHandler? InstallToStandardLocationRequested;
 
     internal SettingsForm(AppSettings settings)
     {
@@ -26,7 +30,7 @@ internal sealed class SettingsForm : Form
         MaximizeBox = false;
         MinimizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(560, 470);
+        ClientSize = new Size(620, 620);
         KeyPreview = true;
 
         var descriptionLabel = new Label
@@ -73,7 +77,7 @@ internal sealed class SettingsForm : Form
         };
 
         displayOrderListBox.Location = new Point(16, 194);
-        displayOrderListBox.Size = new Size(420, 150);
+        displayOrderListBox.Size = new Size(420, 130);
 
         moveUpButton.AutoSize = true;
         moveUpButton.Location = new Point(452, 194);
@@ -88,15 +92,35 @@ internal sealed class SettingsForm : Form
         var displayOrderHelpLabel = new Label
         {
             AutoSize = false,
-            Location = new Point(16, 354),
-            Size = new Size(520, 44),
+            Location = new Point(16, 334),
+            Size = new Size(560, 44),
             Text = "接続中のディスプレイだけを表示します。未接続の保存済みディスプレイは無視し、新しく増えたディスプレイは末尾に追加します。"
         };
 
         startWithWindowsCheckBox.AutoSize = true;
-        startWithWindowsCheckBox.Location = new Point(16, 412);
+        startWithWindowsCheckBox.Location = new Point(16, 392);
         startWithWindowsCheckBox.Text = "Windows 起動時に Mouse Hop を起動する";
         startWithWindowsCheckBox.CheckedChanged += OnStartWithWindowsCheckedChanged;
+
+        var installationLabel = new Label
+        {
+            AutoSize = true,
+            Location = new Point(16, 434),
+            Text = "標準配置:"
+        };
+
+        installationStatusLabel.AutoSize = true;
+        installationStatusLabel.Location = new Point(96, 434);
+        installationStatusLabel.Font = new Font(installationStatusLabel.Font, FontStyle.Bold);
+
+        installationPathLabel.AutoSize = false;
+        installationPathLabel.Location = new Point(16, 462);
+        installationPathLabel.Size = new Size(580, 70);
+
+        installButton.AutoSize = true;
+        installButton.Location = new Point(16, 542);
+        installButton.Text = "標準フォルダへ配置";
+        installButton.Click += (_, _) => InstallToStandardLocationRequested?.Invoke(this, EventArgs.Empty);
 
         Controls.Add(displayOrderLabel);
         Controls.Add(displayOrderListBox);
@@ -104,6 +128,10 @@ internal sealed class SettingsForm : Form
         Controls.Add(moveDownButton);
         Controls.Add(displayOrderHelpLabel);
         Controls.Add(startWithWindowsCheckBox);
+        Controls.Add(installationLabel);
+        Controls.Add(installationStatusLabel);
+        Controls.Add(installationPathLabel);
+        Controls.Add(installButton);
 
         SetSettings(settings);
     }
@@ -194,6 +222,25 @@ internal sealed class SettingsForm : Form
         {
             updatingStartWithWindows = false;
         }
+    }
+
+    internal void SetInstallationStatus(InstallationStatus status)
+    {
+        installationStatusLabel.Text = status.IsInstalled
+            ? "標準フォルダに配置済み"
+            : "標準フォルダに未配置";
+
+        var currentPath = string.IsNullOrWhiteSpace(status.CurrentExecutablePath)
+            ? "取得できません"
+            : status.CurrentExecutablePath;
+
+        installationPathLabel.Text =
+            $"現在の場所: {currentPath}{Environment.NewLine}" +
+            $"標準の場所: {status.StandardExecutablePath}{Environment.NewLine}" +
+            "この場所へ配置して常用できます。";
+
+        installButton.Enabled = !status.IsInstalled && status.CanInstall;
+        installButton.Text = status.IsInstalled ? "標準フォルダに配置済み" : "標準フォルダへ配置";
     }
 
     private void OnChangeClicked(object? sender, EventArgs e)

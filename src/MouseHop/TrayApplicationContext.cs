@@ -66,11 +66,13 @@ internal sealed class TrayApplicationContext : ApplicationContext
             settingsForm.MovementModeChanged += OnSettingsMovementModeChanged;
             settingsForm.DisplayOrderChanged += OnSettingsDisplayOrderChanged;
             settingsForm.StartWithWindowsChanged += OnSettingsStartWithWindowsChanged;
+            settingsForm.InstallToStandardLocationRequested += OnInstallToStandardLocationRequested;
             settingsForm.FormClosed += (_, _) => settingsForm = null;
         }
 
         RefreshStartWithWindowsSetting();
         settingsForm.SetStartWithWindows(settings.StartWithWindows);
+        settingsForm.SetInstallationStatus(InstallationManager.GetStatus());
         settingsForm.Show();
         settingsForm.Activate();
     }
@@ -110,6 +112,25 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         RefreshStartWithWindowsSetting();
         settingsForm?.SetStartWithWindows(settings.StartWithWindows);
+    }
+
+    private void OnInstallToStandardLocationRequested(object? sender, EventArgs e)
+    {
+        var result = InstallationManager.InstallToStandardLocationAndRestart();
+        if (!result.Succeeded)
+        {
+            ShowWarning(result.ErrorMessage ?? "標準フォルダへの配置に失敗しました。");
+            settingsForm?.SetInstallationStatus(InstallationManager.GetStatus());
+            return;
+        }
+
+        if (result.ShouldExitCurrentProcess)
+        {
+            ExitThread();
+            return;
+        }
+
+        settingsForm?.SetInstallationStatus(InstallationManager.GetStatus());
     }
 
     private void RefreshStartWithWindowsSetting()
