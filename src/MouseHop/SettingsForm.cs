@@ -127,7 +127,6 @@ internal sealed class SettingsForm : Form
         }
     }
 
-
     internal void SetDisplayOrder(IReadOnlyList<string> displayOrder)
     {
         var selectedDeviceName = (displayOrderListBox.SelectedItem as DisplayInfo)?.DeviceName;

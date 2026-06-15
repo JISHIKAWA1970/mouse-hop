@@ -121,7 +121,6 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
         catch
         {
-            // Fall back to the default icon if the generated icon cannot be created.
             return SystemIcons.Application;
         }
     }
