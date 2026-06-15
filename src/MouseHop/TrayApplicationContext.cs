@@ -30,7 +30,14 @@ internal sealed class TrayApplicationContext : ApplicationContext
         };
 
         hotKeyWindow.HotKeyPressed += OnHotKeyPressed;
-        hotKeyWindow.RegisterMoveHotKey();
+        if (!hotKeyWindow.TryRegisterMoveHotKey(out var errorMessage))
+        {
+            notifyIcon.ShowBalloonTip(
+                5000,
+                "Mouse Hop",
+                errorMessage ?? "F13 の登録に失敗しました。",
+                ToolTipIcon.Warning);
+        }
     }
 
     private void OnHotKeyPressed(object? sender, EventArgs e)
