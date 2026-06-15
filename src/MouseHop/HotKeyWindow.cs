@@ -5,74 +5,77 @@ namespace MouseHop;
 
 internal sealed class HotKeyWindow : NativeWindow, IDisposable
 {
-    private const int HotKeyId = 1;
-    private bool disposed;
-    private bool registered;
+private const int HotKeyId = 1;
+private bool disposed;
+private bool registered;
 
-    internal event EventHandler? HotKeyPressed;
+```
+internal event EventHandler? HotKeyPressed;
 
-    internal HotKeyWindow()
+internal HotKeyWindow()
+{
+    CreateHandle(new CreateParams());
+}
+
+internal bool TryRegisterMoveHotKey(out string? errorMessage)
+{
+    errorMessage = null;
+
+    if (registered)
     {
-        CreateHandle(new CreateParams());
-    }
-
-    internal bool TryRegisterMoveHotKey(out string? errorMessage)
-    {
-        errorMessage = null;
-
-        if (registered)
-        {
-            return true;
-        }
-
-        var success = NativeMethods.RegisterHotKey(
-            Handle,
-            HotKeyId,
-            0,
-            (uint)Keys.F13);
-
-        if (!success)
-        {
-            var exception = new Win32Exception(Marshal.GetLastWin32Error());
-            errorMessage = $"F13 の登録に失敗しました: {exception.Message}";
-            return false;
-        }
-
-        registered = true;
         return true;
     }
 
-    internal void UnregisterMoveHotKey()
-    {
-        if (!registered)
-        {
-            return;
-        }
+    var success = NativeMethods.RegisterHotKey(
+        Handle,
+        HotKeyId,
+        0,
+        (uint)Keys.F13);
 
-        NativeMethods.UnregisterHotKey(Handle, HotKeyId);
-        registered = false;
+    if (!success)
+    {
+        var exception = new Win32Exception(Marshal.GetLastWin32Error());
+        errorMessage = $"F13 の登録に失敗しました: {exception.Message}";
+        return false;
     }
 
-    protected override void WndProc(ref Message m)
-    {
-        if (m.Msg == NativeMethods.WmHotKey && m.WParam.ToInt32() == HotKeyId)
-        {
-            HotKeyPressed?.Invoke(this, EventArgs.Empty);
-            return;
-        }
+    registered = true;
+    return true;
+}
 
-        base.WndProc(ref m);
+internal void UnregisterMoveHotKey()
+{
+    if (!registered)
+    {
+        return;
     }
 
-    public void Dispose()
-    {
-        if (disposed)
-        {
-            return;
-        }
+    NativeMethods.UnregisterHotKey(Handle, HotKeyId);
+    registered = false;
+}
 
-        UnregisterMoveHotKey();
-        DestroyHandle();
-        disposed = true;
+protected override void WndProc(ref Message m)
+{
+    if (m.Msg == NativeMethods.WmHotKey && m.WParam.ToInt32() == HotKeyId)
+    {
+        HotKeyPressed?.Invoke(this, EventArgs.Empty);
+        return;
     }
+
+    base.WndProc(ref m);
+}
+
+public void Dispose()
+{
+    if (disposed)
+    {
+        return;
+    }
+
+    UnregisterMoveHotKey();
+    DestroyHandle();
+    disposed = true;
+}
+```
+
 }
