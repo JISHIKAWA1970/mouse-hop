@@ -5,9 +5,9 @@ internal sealed class DisplayNavigator
     private int fallbackIndex = -1;
     private int direction = 1;
 
-    internal bool MoveToNextDisplayCenter(MovementMode movementMode)
+    internal bool MoveToNextDisplayCenter(MovementMode movementMode, IReadOnlyList<string> displayOrder)
     {
-        var screens = GetOrderedScreens();
+        var screens = GetOrderedScreens(displayOrder);
         if (screens.Length == 0)
         {
             return false;
@@ -26,6 +26,15 @@ internal sealed class DisplayNavigator
         var centerY = bounds.Top + bounds.Height / 2;
 
         return NativeMethods.SetCursorPos(centerX, centerY);
+    }
+
+    internal static DisplayInfo[] GetCurrentDisplays(IReadOnlyList<string> displayOrder)
+    {
+        return GetOrderedScreens(displayOrder)
+            .Select((screen, index) => new DisplayInfo(
+                screen.DeviceName,
+                $"{index + 1}. {screen.DeviceName} - {screen.Bounds.Width}x{screen.Bounds.Height} @ ({screen.Bounds.Left}, {screen.Bounds.Top}){(screen.Primary ? " / Primary" : string.Empty)}"))
+            .ToArray();
     }
 
     private int GetNextIndex(int currentIndex, int screenCount, MovementMode movementMode)
@@ -76,12 +85,44 @@ internal sealed class DisplayNavigator
         return GetNextIndex(fallbackIndex, screenCount, movementMode);
     }
 
-    private static Screen[] GetOrderedScreens()
+    private static Screen[] GetOrderedScreens(IReadOnlyList<string> displayOrder)
     {
-        return Screen.AllScreens
+        var currentScreens = Screen.AllScreens;
+        if (displayOrder.Count == 0)
+        {
+            return GetAutoOrderedScreens(currentScreens);
+        }
+
+        var remainingScreens = currentScreens.ToList();
+        var orderedScreens = new List<Screen>();
+
+        foreach (var deviceName in displayOrder)
+        {
+            var match = remainingScreens.FirstOrDefault(screen => string.Equals(screen.DeviceName, deviceName, StringComparison.Ordinal));
+            if (match is null)
+            {
+                continue;
+            }
+
+            orderedScreens.Add(match);
+            remainingScreens.Remove(match);
+        }
+
+        orderedScreens.AddRange(GetAutoOrderedScreens(remainingScreens));
+        return orderedScreens.ToArray();
+    }
+
+    private static Screen[] GetAutoOrderedScreens(IEnumerable<Screen> screens)
+    {
+        return screens
             .OrderBy(screen => screen.Bounds.Top)
             .ThenBy(screen => screen.Bounds.Left)
             .ThenBy(screen => screen.DeviceName, StringComparer.Ordinal)
             .ToArray();
     }
+}
+
+internal sealed record DisplayInfo(string DeviceName, string DisplayText)
+{
+    public override string ToString() => DisplayText;
 }

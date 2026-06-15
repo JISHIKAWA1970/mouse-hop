@@ -34,7 +34,8 @@ internal static class SettingsStore
 
             return new AppSettings(
                 new HotKeySettings(dto.Modifiers, dto.Key),
-                movementMode);
+                movementMode,
+                dto.DisplayOrder ?? Array.Empty<string>());
         }
         catch
         {
@@ -49,7 +50,8 @@ internal static class SettingsStore
         {
             Modifiers = settings.HotKey.Modifiers,
             Key = settings.HotKey.Key,
-            MovementMode = settings.MovementMode
+            MovementMode = settings.MovementMode,
+            DisplayOrder = settings.DisplayOrder.ToArray()
         };
         var json = JsonSerializer.Serialize(dto, SerializerOptions);
         File.WriteAllText(SettingsPath, json);
@@ -62,5 +64,7 @@ internal static class SettingsStore
         public Keys Key { get; set; }
 
         public MovementMode MovementMode { get; set; } = MovementMode.Loop;
+
+        public string[]? DisplayOrder { get; set; }
     }
 }

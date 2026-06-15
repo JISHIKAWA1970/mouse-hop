@@ -5,12 +5,16 @@ internal sealed class SettingsForm : Form
     private readonly Label currentHotKeyLabel = new();
     private readonly Button changeButton = new();
     private readonly ComboBox movementModeComboBox = new();
+    private readonly ListBox displayOrderListBox = new();
+    private readonly Button moveUpButton = new();
+    private readonly Button moveDownButton = new();
     private bool waitingForHotKey;
     private bool leftWinDown;
     private bool rightWinDown;
 
     internal event EventHandler<HotKeySettings>? HotKeyChanged;
     internal event EventHandler<MovementMode>? MovementModeChanged;
+    internal event EventHandler<IReadOnlyList<string>>? DisplayOrderChanged;
 
     internal SettingsForm(AppSettings settings)
     {
@@ -19,7 +23,7 @@ internal sealed class SettingsForm : Form
         MaximizeBox = false;
         MinimizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(360, 190);
+        ClientSize = new Size(560, 420);
         KeyPreview = true;
 
         var descriptionLabel = new Label
@@ -58,6 +62,40 @@ internal sealed class SettingsForm : Form
         Controls.Add(movementModeLabel);
         Controls.Add(movementModeComboBox);
 
+        var displayOrderLabel = new Label
+        {
+            AutoSize = true,
+            Location = new Point(16, 166),
+            Text = "ディスプレイ順:"
+        };
+
+        displayOrderListBox.Location = new Point(16, 194);
+        displayOrderListBox.Size = new Size(420, 150);
+
+        moveUpButton.AutoSize = true;
+        moveUpButton.Location = new Point(452, 194);
+        moveUpButton.Text = "上へ";
+        moveUpButton.Click += (_, _) => MoveSelectedDisplay(-1);
+
+        moveDownButton.AutoSize = true;
+        moveDownButton.Location = new Point(452, 232);
+        moveDownButton.Text = "下へ";
+        moveDownButton.Click += (_, _) => MoveSelectedDisplay(1);
+
+        var displayOrderHelpLabel = new Label
+        {
+            AutoSize = false,
+            Location = new Point(16, 354),
+            Size = new Size(520, 44),
+            Text = "接続中のディスプレイだけを表示します。未接続の保存済みディスプレイは無視し、新しく増えたディスプレイは末尾に追加します。"
+        };
+
+        Controls.Add(displayOrderLabel);
+        Controls.Add(displayOrderListBox);
+        Controls.Add(moveUpButton);
+        Controls.Add(moveDownButton);
+        Controls.Add(displayOrderHelpLabel);
+
         SetSettings(settings);
     }
 
@@ -65,6 +103,7 @@ internal sealed class SettingsForm : Form
     {
         SetCurrentHotKey(settings.HotKey);
         SetMovementMode(settings.MovementMode);
+        SetDisplayOrder(settings.DisplayOrder);
     }
 
     internal void SetCurrentHotKey(HotKeySettings settings)
@@ -86,6 +125,52 @@ internal sealed class SettingsForm : Form
                 return;
             }
         }
+    }
+
+    internal void SetDisplayOrder(IReadOnlyList<string> displayOrder)
+    {
+        var selectedDeviceName = (displayOrderListBox.SelectedItem as DisplayInfo)?.DeviceName;
+        displayOrderListBox.Items.Clear();
+
+        foreach (var display in DisplayNavigator.GetCurrentDisplays(displayOrder))
+        {
+            displayOrderListBox.Items.Add(display);
+            if (string.Equals(display.DeviceName, selectedDeviceName, StringComparison.Ordinal))
+            {
+                displayOrderListBox.SelectedItem = display;
+            }
+        }
+
+        if (displayOrderListBox.SelectedIndex < 0 && displayOrderListBox.Items.Count > 0)
+        {
+            displayOrderListBox.SelectedIndex = 0;
+        }
+    }
+
+    private void MoveSelectedDisplay(int offset)
+    {
+        var currentIndex = displayOrderListBox.SelectedIndex;
+        if (currentIndex < 0)
+        {
+            return;
+        }
+
+        var newIndex = currentIndex + offset;
+        if (newIndex < 0 || newIndex >= displayOrderListBox.Items.Count)
+        {
+            return;
+        }
+
+        var item = displayOrderListBox.Items[currentIndex];
+        displayOrderListBox.Items.RemoveAt(currentIndex);
+        displayOrderListBox.Items.Insert(newIndex, item);
+        displayOrderListBox.SelectedIndex = newIndex;
+
+        var displayOrder = displayOrderListBox.Items
+            .OfType<DisplayInfo>()
+            .Select(display => display.DeviceName)
+            .ToArray();
+        DisplayOrderChanged?.Invoke(this, displayOrder);
     }
 
     private void OnChangeClicked(object? sender, EventArgs e)

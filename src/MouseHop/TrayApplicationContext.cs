@@ -29,7 +29,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         notifyIcon = new NotifyIcon
         {
             ContextMenuStrip = menu,
-            Icon = SystemIcons.Application,
+            Icon = LoadTrayIcon(),
             Text = "Mouse Hop",
             Visible = true
         };
@@ -67,6 +67,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             settingsForm = new SettingsForm(settings);
             settingsForm.HotKeyChanged += OnSettingsHotKeyChanged;
             settingsForm.MovementModeChanged += OnSettingsMovementModeChanged;
+            settingsForm.DisplayOrderChanged += OnSettingsDisplayOrderChanged;
             settingsForm.FormClosed += (_, _) => settingsForm = null;
         }
 
@@ -89,6 +90,13 @@ internal sealed class TrayApplicationContext : ApplicationContext
         settingsForm?.SetMovementMode(settings.MovementMode);
     }
 
+    private void OnSettingsDisplayOrderChanged(object? sender, IReadOnlyList<string> displayOrder)
+    {
+        settings = settings with { DisplayOrder = displayOrder.ToArray() };
+        SettingsStore.Save(settings);
+        settingsForm?.SetDisplayOrder(settings.DisplayOrder);
+    }
+
     private void OnPauseClicked(object? sender, EventArgs e)
     {
         paused = pauseMenuItem.Checked;
@@ -102,7 +110,69 @@ internal sealed class TrayApplicationContext : ApplicationContext
             return;
         }
 
-        displayNavigator.MoveToNextDisplayCenter(settings.MovementMode);
+        displayNavigator.MoveToNextDisplayCenter(settings.MovementMode, settings.DisplayOrder);
+    }
+
+    private static Icon LoadTrayIcon()
+    {
+        try
+        {
+            return CreateGeneratedTrayIcon();
+        }
+        catch
+        {
+            return SystemIcons.Application;
+        }
+    }
+
+    private static Icon CreateGeneratedTrayIcon()
+    {
+        using var bitmap = new Bitmap(32, 32);
+        using (var graphics = Graphics.FromImage(bitmap))
+        {
+            graphics.Clear(Color.Transparent);
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            using var monitorBrush = new SolidBrush(Color.FromArgb(37, 99, 235));
+            using var screenBrush = new SolidBrush(Color.FromArgb(219, 234, 254));
+            using var hopPen = new Pen(Color.FromArgb(34, 197, 94), 3);
+            using var hopBrush = new SolidBrush(Color.FromArgb(34, 197, 94));
+            using var cursorBrush = new SolidBrush(Color.White);
+            using var cursorPen = new Pen(Color.FromArgb(15, 23, 42), 1.5f);
+
+            graphics.FillRectangle(monitorBrush, 2, 11, 11, 11);
+            graphics.FillRectangle(screenBrush, 4, 13, 7, 6);
+            graphics.FillRectangle(monitorBrush, 19, 11, 11, 11);
+            graphics.FillRectangle(screenBrush, 21, 13, 7, 6);
+
+            graphics.DrawArc(hopPen, 8, 4, 16, 14, 205, 130);
+            graphics.FillEllipse(hopBrush, 22, 7, 5, 5);
+
+            var cursorPoints = new[]
+            {
+                new Point(10, 5),
+                new Point(10, 26),
+                new Point(15, 21),
+                new Point(19, 29),
+                new Point(23, 27),
+                new Point(19, 19),
+                new Point(26, 19)
+            };
+
+            graphics.FillPolygon(cursorBrush, cursorPoints);
+            graphics.DrawPolygon(cursorPen, cursorPoints);
+        }
+
+        var handle = bitmap.GetHicon();
+        try
+        {
+            using var icon = Icon.FromHandle(handle);
+            return (Icon)icon.Clone();
+        }
+        finally
+        {
+            NativeMethods.DestroyIcon(handle);
+        }
     }
 
     private void OnExitClicked(object? sender, EventArgs e)
